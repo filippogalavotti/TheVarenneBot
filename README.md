@@ -190,8 +190,8 @@ Operational tips:
   ├── simulator.py            # Evaluation harness & PnL simulation
   ├── varenne.py              # Live bot using Binance API on BTCEUR
 └── docs/
-    ├── aug-2025-equity.png  # Equity curves image
-    └── pipeline-diagram.png # Pipeline schematic
+    ├── grafico.png  # Equity curves image
+    └── pipeline.png # Pipeline schematic
 ├── README.md               # ← You are here
 ```
 
