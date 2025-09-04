@@ -41,9 +41,8 @@ Period: **2025-08-01 → 2025-08-31** on BTCEUR, compared to a buy-and-hold benc
 
 | Metric                          |       TheVarenneBot | Buy & Hold (BTCEUR) |
 | ------------------------------- | ------------------: | ------------------: |
-| Total return (Aug 1→31)         |          **+2.04%** |          **−5.37%** |
-| Outperformance (Aug 1→31)       |        **+7.41 pp** |                   — |
 | Return vs 31 Jul close (Aug 31) |          **+2.04%** |          **−8.65%** |
+| Outperformance (Aug 1→31)       |        **+6.61 pp** |                   — |
 | Max drawdown                    |          **−4.72%** |         **−11.62%** |
 | Sharpe (annualized, daily)      |            **1.59** |           **−3.26** |
 | Sortino (annualized, daily)     |            **2.60** |           **−4.65** |
