@@ -53,7 +53,7 @@ Period: **2025‑08‑01 → 2025‑08‑31** on BTCEUR, compared to a buy‑and
 >
 > Add the image `docs/aug-2025-equity.png` to the repo and reference it here:
 >
-> `![August 2025: TheVarenneBot vs Buy & Hold](docs/aug-2025-equity.png)`
+> `![August 2025: TheVarenneBot vs Buy & Hold](docs/grafico.png)`
 
 ---
 
