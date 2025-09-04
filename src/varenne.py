@@ -1,5 +1,3 @@
-#FdwJremArcLMJPtcaieK
-
 from binance.client import Client
 import tensorflow as tf
 from datetime import datetime, timedelta
@@ -591,3 +589,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         send_telegram_message("💤 Varenne va a letto...")
         print("\nExiting...")
+
