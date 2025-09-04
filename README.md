@@ -51,7 +51,7 @@ Period: **2025‑08‑01 → 2025‑08‑31** on BTCEUR, compared to a buy‑and
 
 > 📈 *Equity curves (normalized to 1.0 on 2025‑07‑31):*
 >
-> `![August 2025: TheVarenneBot vs Buy & Hold]([docs/grafico.png](https://github.com/filippogalavotti/TheVarenneBot/blob/main/docs/grafico.png))`
+> `![August 2025: TheVarenneBot vs Buy & Hold](https://github.com/filippogalavotti/TheVarenneBot/blob/main/docs/grafico.png)`
 
 ---
 
