@@ -1,4 +1,4 @@
-# TheVarenneBot — ML-driven BTCEUR trading bot (Binance)
+# TheVarenneBot — BTCEUR trading bot (Binance)
 
 > End-to-end research → training → simulation → live trading on the BTCEUR pair using the Binance API.
 
@@ -9,6 +9,7 @@
 * [Overview](#overview)
 * [August 2025 live results](#august-2025-live-results)
 * [How it works](#how-it-works)
+* [Data Flow Inside the Trading Bot](#data-flow-inside-the-trading-bot)
 * [Execution engine: limitations & improvements](#execution-engine-limitations--improvements)
 * [Dataset shuffling caveat](#dataset-shuffling-caveat)
 * [Temporal Convolutional Networks](#temporal-convolutional-networks)
@@ -24,7 +25,7 @@
 
 **TheVarenneBot** is a full research–to–production pipeline for short-horizon trading on **BTCEUR**:
 
-* **Data extraction** from Binance (5-minute klines). Robust retry/backoff and rate-limit friendly pagination.
+* **Data extraction** from Binance (5-minute klines). Robust retry/backoff and rate-limit friendly.
 * **Dataset creation**: rolling windows of features/labels suitable for deep learning.
 * **Modeling**: two supervised models learn to forecast the next-window **high** and **low** (normalized), which the execution engine translates into actionable orders.
 * **Simulation** on a held-out evaluation set.
@@ -43,15 +44,14 @@ Period: **2025-08-01 → 2025-08-31** on BTCEUR, compared to a buy-and-hold benc
 | ------------------------------- | ------------------: | ------------------: |
 | Return vs 31 Jul close (Aug 31) |          **+2.04%** |          **−8.65%** |
 | Outperformance (Aug 1→31)       |        **+6.61 pp** |                   — |
-| Max drawdown                    |          **−4.72%** |         **−11.62%** |
-| Sharpe (annualized, daily)      |            **1.59** |           **−3.26** |
-| Sortino (annualized, daily)     |            **2.60** |           **−4.65** |
+| Sharpe                          |            **1.44** |           **−0.97** |
+| Sortino                         |            **2.32** |           **−1.50** |
 | Hit rate (days > 0)             |          **51.61%** |          **41.94%** |
-| Best / worst day                | **+1.88% / −1.89%** | **+2.13% / −4.13%** |
-| Return correlation vs BTC       |            **0.62** |                   — |
-| Beta vs BTC (daily)             |            **0.32** |                   — |
+| Best / worst day                | **+1.90% / −2.00%** | **+2.54% / −3.52%** |
+| Return correlation vs BTC       |            **0.51** |                   — |
+| Beta vs BTC                     |            **0.28** |                   — |
 
-**Interpretation.** The bot delivered **positive absolute return in a declining month** and behaved defensively (β≈0.32). Its shallower drawdown and better downside-risk profile (higher Sortino) suggest the model’s signals avoided a chunk of the mid/late-month selloff and limited exposure during spikes in realized volatility.
+**Interpretation.** The bot delivered **positive absolute return in a declining month** and behaved defensively (β≈0.28). Its shallower drawdown and better downside-risk profile (higher Sortino) suggest the model’s signals avoided a chunk of the mid/late-month selloff and limited exposure during spikes in realized volatility.
 
 > 📈 *Equity curves (normalized to 1.0 on 2025-07-31):*  
 > ![August 2025: Buy & Hold vs TheVarenneBot](docs/grafico.png)
@@ -75,6 +75,71 @@ Period: **2025-08-01 → 2025-08-31** on BTCEUR, compared to a buy-and-hold benc
 
 > 📊 *End-to-end pipeline schematic:*  
 > ![Pipeline Diagram](docs/pipeline.png)
+
+---
+
+## Data Flow Inside the Trading Bot
+
+This trading bot is designed as a **multi-threaded system** where market data, predictions, and orders continuously flow through different modules. A key architectural choice is how **price information** is shared across threads:
+
+- The **buy thread** reads the latest price directly from a **shared variable (`lastPrice`)**, protected by a lock.  
+- The **sell thread** consumes prices from a **queue (`price_queue`)**, ensuring that it processes every incoming price event sequentially.
+
+---
+
+**Market Data Ingestion**
+- **Source:** Binance WebSocket (`btceur@ticker`)
+- **Handler:** `priceThreadRoutine`
+- **Flow:**
+  - Each incoming WebSocket message contains the current market price.
+  - The message is processed in `on_message`:
+    - Updates the shared variable `lastPrice` (protected by `lastPrice_Lock`).
+    - Pushes the same price into `price_queue` for downstream processing.
+
+---
+
+**Buy Logic (Entry)**
+- **Handler:** `buyThreadRoutine`
+- **How it uses price data:**
+  - Reads the most recent market price directly from the **shared variable `lastPrice`**.
+  - Does not care about the exact sequence of all past prices — it only needs the *latest snapshot* to decide whether to enter a trade.
+- **Flow:**
+  1. Fetches and prepares 5-minute candlestick data from Binance.
+  2. Uses TensorFlow models to predict the next high and low.
+  3. Compares the **latest price (`lastPrice`)** to the predicted range.
+  4. If conditions match, places a **market buy order** and creates an `orderOCO` object with TP/SL levels.
+
+---
+
+**Sell Logic (Exit)**
+- **Handler:** `sellThreadRoutine`
+- **How it uses price data:**
+  - Consumes prices from the **queue (`price_queue`)**.
+  - This ensures it processes **every tick in order** and never misses a trigger event.
+- **Flow:**
+  1. Reads the next available price from the queue.
+  2. Iterates through all active `ordersOCO`.
+  3. Checks if TP, SL, or expiry conditions are met.
+  4. If triggered, executes a **market sell order**, calculates profit/loss, and removes the order from `ordersOCO`.
+
+---
+
+**Why This Split Design?**
+- **Buy Thread (snapshot-driven):**
+  - Needs only the latest price for decision-making.
+  - Avoids lag from processing every price tick.
+- **Sell Thread (event-driven):**
+  - Must react **precisely** to all price movements.
+  - Queue ensures that no trigger (TP/SL/expiry) is ever skipped, even in fast-moving markets.
+
+---
+
+**Summary**
+- **PriceThread →** updates `lastPrice` for the buy thread and pushes into `price_queue` for the sell thread.  
+- **BuyThread →** reads **shared `lastPrice`** (latest snapshot) to decide when to open new positions.  
+- **SellThread →** consumes **sequential price events from `price_queue`** to close positions reliably.  
+
+This dual approach balances **efficiency** (buy decisions are lightweight) with **accuracy** (sell conditions are never skipped).
 
 ---
 
